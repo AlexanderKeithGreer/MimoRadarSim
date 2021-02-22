@@ -1,6 +1,8 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.linalg as la
 import numpy.random as ra
+
 
 import signalLFM as lfm
 
@@ -23,15 +25,74 @@ def simulateTxToRx(tx_loc, target_loc, rx_loc, raw_waveform, rcs, fs, fc):
     d_total = d_tx_t + d_t_rx
     wavelength = 3e8/fc
 
-    phase_shift = 2* np.pi* d_total / wavelength
-    n_delay = (fs/fc) * (d_total/wavelength)
-    loss_tx_t = 4**2 * np.pi**2 * d_tx_t**2 / (wavelength**2)
-    loss_rx_t = 4**2 * np.pi**2 * d_t_rx**2 / (wavelength**2)
-    loss = loss_rx_t * loss_tx_t * rcs
+    phase_shift = 2j* np.pi* d_total / wavelength
+    n_delay = np.int64(np.round((fs/fc) * (d_total/wavelength)))
+    #print(n_delay)
+    n_samp = len(raw_waveform)
 
-    output = np.zeros(len(raw_waveform))
-    output[n_delay:] = raw_waveform * loss * np.exp(phase_shift)[:n_delay]
+    #Wavelength is there
+    #Divide by 4*pi each area needed.
+    #We calculate power loss, need to square it to convert to voltage loss.
+    loss_tx_t = (wavelength) / (4 * np.pi * d_tx_t**2)
+    loss_rx_t = (wavelength) / (4 * np.pi * d_t_rx**2)
+    loss = loss_rx_t * loss_tx_t * (rcs/(4 * np.pi))
+    #print("loss = ", loss**(1/2))
+
+    output = np.zeros(len(raw_waveform), dtype = np.complex128)
+    output[n_delay:] = raw_waveform[:(n_samp - n_delay)] * loss**(1/2) * np.exp(phase_shift)
     return output;
+
+def simulateTxToRx_test():
+    fc = 0.3e9
+    fs = 100e6
+    wl = 3e8/fc
+    rcs = 1
+
+    #Generate a waveform as a chirp
+    #This chirp has a duration of 1000us, pulse repitition of 100us,
+    #   pulse transmission time of 50us
+    # BW and carrier of 1e6, fs of 100e6, and amplitude of 1
+    tx, mix = lfm.generateChirpPulsedLFM(0.001, 0.0001, 0.00002, 1e6, 1e6, fs, 1)
+
+    #Tests are just via visual inspection
+    #Test 1: Loss and delay between doubly seperated antenns
+    #Test 2: Phase difference between far antennas seperated by
+    #   fractions of wavelengths
+    #Test 3: Making sure that the distances assoc with target work properly
+
+    t1_tx_antenna = np.array([0,0,0])
+    target_pos = np.array([wl*1.0, 0, 0])
+    t1_rx1_antenna = np.array([wl*2.0, 0, 0])
+    t1_rx2_antenna = np.array([wl*2.5, 0, 0])
+    t1_rx3_antenna = np.array([wl*3.0, 0, 0])
+
+    #Used to show the delays are zero for zero seperation; can't work properly due to div by zero
+    rx_div0 = simulateTxToRx(t1_rx1_antenna, t1_rx1_antenna, t1_rx1_antenna, tx, 1, fs, fc)
+
+    #Stock comparison
+    rx_direct1 = simulateTxToRx(t1_tx_antenna, target_pos, t1_rx1_antenna, tx, 1, fs, fc)
+    rx_direct2 = simulateTxToRx(t1_tx_antenna, target_pos, t1_rx2_antenna, tx, 1, fs, fc)
+    rx_direct3 = simulateTxToRx(t1_tx_antenna, target_pos, t1_rx3_antenna, tx, 1, fs, fc)
+    rx_via3 = simulateTxToRx(t1_tx_antenna, target_pos, t1_rx3_antenna, tx, 1, fs, fc)
+
+    #Use Correlation to find the results!
+    corr = lfm.processLFMPulseCompression(tx,tx,fs,0,3)
+    print("Case 1 : Peak power, no phase shift")
+    print("|null|, angle(null) = ", np.var(tx), ",", np.angle(corr), "\n")
+
+    corr = lfm.processLFMPulseCompression(tx,rx_direct1,fs,0,3)
+    print("Case 2 : Lowered by (4*pi)**-3, minimal phase shift due to 2 lambda seperation")
+    print("|rx1|, angle(tx1) = ", np.var(rx_direct1)/np.var(tx), ",", np.angle(corr), "\n")
+
+    corr = lfm.processLFMPulseCompression(tx,rx_direct2,fs,0,3)
+    print("Case 3 : Lowered by (1.5)**-2 * (4*pi)**-3, pi phase shift, due to 1 lambda seperation")
+    print("|rx2|, angle(tx2) = ", np.var(rx_direct2)/np.var(tx), ",", np.angle(corr), "\n")
+
+    corr = lfm.processLFMPulseCompression(tx,rx_direct3,fs,0,3)
+    print("Case 4 : Lowered by (2)**-2 * (4*pi)**-3, no phase shift, due to 1 lambda seperation")
+    print("|rx2|, angle(tx2) = ", np.var(rx_direct3)/np.var(tx), ",", np.angle(corr), "\n")
+
+simulateTxToRx_test()
 
 def simulateWholeSystem(tx_locs, target_locs, rx_locs, targets, waveforms, noise_power, fs, fc, interf=False):
     """
@@ -90,5 +151,3 @@ def simulateWholeSystem_test():
     raw_outputs = simulateWholeSystem(antennas_tx, target, antennas_rx, rcs, waveforms, 0.0, fs, fc)
 
     plt.plot(10*np.log10(np.abs(nfft.fft(raw_outputs[0]))))
-
-simulateWholeSystem_test()

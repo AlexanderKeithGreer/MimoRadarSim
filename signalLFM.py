@@ -96,7 +96,6 @@ def processLFMPulseCompression(reference, received, fs, f_max, r_max):
     delay_max = np.int64(np.round(fs * r_max/c))
 
     f_step = fs / (n_samples_ref) #Presumably set to this value because of the limits imposed by the CRB
-    print("f_step = ", f_step)
     n_freq_step = np.int64(np.round( f_max/f_step ))
 
     freq_shifts = np.arange(-n_freq_step, n_freq_step + 1, 1)
