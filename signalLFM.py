@@ -1,15 +1,22 @@
-import numpy as np
-import numpy.random as ra
 import matplotlib.pyplot as plt
+import numpy as np
 import numpy.fft as nfft
+import numpy.random as ra
+import scipy.signal as sig
 
-def generateChirpPulsedLFM(t ,T, Tp, B, fc, fs, A0, verbose = False):
+
+
+def generateChirpPulsedLFM(t ,T, Tp, B, fc, fs, A0, filter = True, verbose = False):
     """
     T = Pulse train period (s)
     Tp = Pulse duration time (s)
     B = bandwidth
     fc = carrier frequency (probably should leave this at zero m8)
     fs = sampling frequency
+    A0 = pulse amplitude
+
+    filter is an optional bool that lets us confine the pulse to a desired BW
+    verbose is mostly a debug variable
     """
 
     if (fs < B):
@@ -53,6 +60,14 @@ def generateChirpPulsedLFM(t ,T, Tp, B, fc, fs, A0, verbose = False):
         pulsedLFM[pulse_start:pulse_end] = chirp[0:(n_samp_pulse_on-1)]
         referenceLFM[pulse_start:reference_end] = chirp[0:(n_samp_ref_on-1)]
 
+    #Filter our pulse such that it is confined to a certain bandwidth
+    if (filter):
+        if (fc < fs/2 and fc+B < fs/2):
+            bandpass = sig.firwin(65, fc+1, fc+B-1, pass_zero=False, fs=fs)
+            pulsedLFM = np.convolve(bandpass, pulsedLFM, mode="same")
+        else:
+            print("WARNING: Filtering not applied, fs is too low")
+
     return pulsedLFM, referenceLFM
 
 def generateChirpPulsedLFM_test():
@@ -67,7 +82,6 @@ def generateChirpPulsedLFM_test():
     plt.plot(10*np.log10(np.abs(nfft.fft(mix)+1e-20)), label="mix")
     plt.plot(10*np.log10(np.abs(nfft.fft(tx)+1e-20)), label="tx")
     plt.show()
-
 
 def processLFMFourier(reference, received):
     """
@@ -84,7 +98,11 @@ def processLFMPulseCompression(reference, received, fs, f_max, r_max):
     Implements pulse compression using the fourier method.
     Remember with delays that n = fs * r/c; s^(-1) * m / ms^(-1)
 
-    reference is a      n_samp   length vector
+    reference is a      n_samp   vector containing the original signal
+    received is an      n_samp   vector containing copies of the orig sig
+    fs is a             scalar   giving the sampling frequency
+    f_max is a          scalar   giving the highest doppler freq to check
+    r_max is a          scalar   giving the highest range value to check
 
     """
 
@@ -127,7 +145,7 @@ def processLFMPulseCompression_test():
     """
 
     awgn = ra.randn(100000) + 1j*ra.randn(100000)
-    awgn_roll = np.roll(awgn, 12) #Delay of 12 corresponds to 30*12 = 360m?
+    awgn_roll = np.roll(awgn, 2) #Delay of 12 corresponds to 30*12 = 360m?
     awgn_phase = np.exp(1j*1.345)*awgn
     awgn_uncorr = ra.randn(100000) + 1j*ra.randn(100000)
     f_shift = 40
@@ -135,9 +153,10 @@ def processLFMPulseCompression_test():
                 #   step of 20Hz in the fourier domain
     awgn_doppler = awgn * np.exp(2j*np.pi*(f_shift/f_s)*np.arange(100000))
 
-    plt.plot(10*np.log10(np.abs(nfft.fft(awgn))))
-    plt.plot(10*np.log10(np.abs(nfft.fft(awgn_doppler))))
-    plt.show()
+    #plt.plot(10*np.log10(np.abs(nfft.fft(awgn))))
+    #plt.plot(10*np.log10(np.abs(nfft.fft(awgn_doppler))))
+    #plt.show()
+
 
     output_same = processLFMPulseCompression(awgn, awgn, f_s, 500, 1e3)
     output_roll = processLFMPulseCompression(awgn, awgn_roll, f_s, 500, 1e3)
@@ -148,15 +167,20 @@ def processLFMPulseCompression_test():
     plt.figure()
     plt.imshow(10*np.log10(np.abs(output_same)))
     plt.title("Same")
+
     plt.figure()
     plt.imshow(10*np.log10(np.abs(output_roll)))
     plt.title("Delay")
+
     plt.figure()
     plt.imshow(10*np.log10(np.abs(output_uncorr)))
+
     plt.title("Uncorr")
     plt.figure()
+
     plt.imshow(10*np.log10(np.abs(output_doppler)))
     plt.title("Dopp")
+
     plt.figure()
     plt.imshow(np.angle(output_phase))
     plt.title("Phase")
