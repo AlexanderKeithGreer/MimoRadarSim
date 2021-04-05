@@ -5,13 +5,8 @@ import numpy.linalg as la
 import numpy.random as ra
 
 
-
 import signalLFM as lfm
 
-# Generic requirements:
-# For each Tx Antenna
-#   For each Rx Antenna
-#       Map the waveform, phase shift[s], and scaling!.
 
 def simulateTxToRx(tx_loc, target_loc, rx_loc, raw_waveform, rcs, fs, fc):
     """
@@ -19,6 +14,9 @@ def simulateTxToRx(tx_loc, target_loc, rx_loc, raw_waveform, rcs, fs, fc):
     target_loc is a 3 array of positions x,y,z
     rx_loc is a 3 array of positions x,y,z
     raw_waveform is exactly that
+    rcs is the target cross section
+    fs is the sampling frequency
+    fc is the centre frequency (narrowband assumption)
     """
 
     #d for distance
@@ -104,12 +102,11 @@ def simulateTxToRx_test():
     plt.title("0 doppler shift slice of pulse compression test")
     plt.show()
 
-simulateTxToRx_test()
 
 def simulateWholeSystem(tx_locs, target_locs, rx_locs, targets, waveforms, noise_power, fs, fc, interf=False):
     """
     tx_locs is a    n_tx * 3        matrix of tx antenna positions
-    tx_locs is a    n_targets * 3   matrix of target positions
+    target_locs is  n_targets * 3   matrix of target positions
     rx_locs is a    n_rx * 3        matrix of rx antenna positions
     targets is a    n_targets       vector of target rcs values
     waveforms is a  n_tx * n_samp   matrix of data

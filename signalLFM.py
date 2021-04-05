@@ -98,12 +98,15 @@ def processLFMPulseCompression(reference, received, fs, f_max, r_max):
     Implements pulse compression using the fourier method.
     Remember with delays that n = fs * r/c; s^(-1) * m / ms^(-1)
 
+    INPUTS:
     reference is a      n_samp   vector containing the original signal
     received is an      n_samp   vector containing copies of the orig sig
     fs is a             scalar   giving the sampling frequency
     f_max is a          scalar   giving the highest doppler freq to check
     r_max is a          scalar   giving the highest range value to check
 
+    OUTPUTS:
+    
     """
 
     #Constants
