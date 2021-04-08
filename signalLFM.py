@@ -106,7 +106,7 @@ def processLFMPulseCompression(reference, received, fs, f_max, r_max):
     r_max is a          scalar   giving the highest range value to check
 
     OUTPUTS:
-    
+    output is a         n_doppler_cell * n_range cell   matrix of correlations
     """
 
     #Constants

@@ -47,12 +47,11 @@ def generateMimoSteeringVector(theta, phi, array_tx, array_rx):
 
     return s
 
-def extract_peak_zero_doppler(raw_waveforms, ref_waveforms, fs, f_max, r_max):
+def extractPeakRangeDoppler(raw_waveforms, ref_waveforms, fs, f_max, r_max):
     """
     Performs pulse compression, and then return a bunch of complex numbers
         from the peak of our correlation. This is only going to work for
         one target, which must be distinguishable from noise.
-    I'll add a variant with CFAR later.
 
     INPUTS:
     raw_waveforms is an n_rx * n_samp   matrix of received signals
@@ -75,4 +74,4 @@ def extract_peak_zero_doppler(raw_waveforms, ref_waveforms, fs, f_max, r_max):
             peak = np.argmax(np.abs(rd_matrix))
             y[rx + tx * n_rx] = rd_matrix[peak[0],peak[1]]
 
-    return y
+    return y, peak
