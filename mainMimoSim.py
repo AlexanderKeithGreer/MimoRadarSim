@@ -27,7 +27,6 @@ def simulateTxToRx(tx_loc, target_loc, rx_loc, raw_waveform, rcs, fs, fc):
 
     phase_shift = 2j* np.pi* d_total / wavelength
     n_delay = np.int64(np.round((fs/fc) * (d_total/wavelength)))
-    print(n_delay)
     n_samp = len(raw_waveform)
 
     #Wavelength is there
@@ -133,12 +132,6 @@ def simulateWholeSystem(tx_locs, target_locs, rx_locs, targets, waveforms, noise
             for target in np.arange(n_targets):
                 outputs[rx,:] += simulateTxToRx(tx_locs[tx], target_locs[target],
                     rx_locs[rx], waveforms[tx], targets[target], fs, fc)
-
-                print("tx_locs[tx]", tx_locs[tx])
-                print("target_locs[target]", target_locs[target])
-                print("waveforms[tx]", waveforms[tx])
-                print("targets[target]", targets[target])
-                print("")
 
     outputs += ra.randn(n_rx, n_samp) * noise_power**(1/2)
 
