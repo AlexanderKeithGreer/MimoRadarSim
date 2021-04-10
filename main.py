@@ -58,26 +58,34 @@ def main_raw_steering_vectors():
     y_two, peak_two = pro.extractPeakRangeDoppler(outputs_two, waveform_two, fs, 10, 400)
     y_four, peak_four = pro.extractPeakRangeDoppler(outputs_four, waveform_four, fs, 10, 400)
 
-    angles = np.arange(45,135)
+    angles = np.deg2rad(np.arange(0,180))
+
     results_solo = np.zeros(len(angles))
     results_two = np.zeros(len(angles))
     results_four = np.zeros(len(angles))
-    print(angles)
+
+    angle_show = np.zeros( (5*4,len(angles)), dtype = np.complex128)
 
     for angle in range(len(angles)):
         #Generate steering vectors
         s_solo = pro.generateMimoSteeringVector(angles[angle], 0, tx_solo, rx_five, fc)
         s_two = pro.generateMimoSteeringVector(angles[angle], 0, tx_two, rx_five, fc)
         s_four = pro.generateMimoSteeringVector(angles[angle], 0, tx_four, rx_five, fc)
-        #Mimo beamforming
-        results_solo[angle] = 10*np.log10(np.abs(np.inner(s_solo,y_solo)))
-        results_two[angle] = 10*np.log10(np.abs(np.inner(s_two,y_two)))
-        results_four[angle] = 10*np.log10(np.abs(np.inner(s_four,y_four)))
+        #Debug: display s_four across time
+        angle_show[:,angle] = s_four
 
-    plt.plot(angles, results_solo, label = "solo")
-    plt.plot(angles, results_two, label = "two")
-    plt.plot(angles, results_four, label = "four")
+        #Mimo beamforming
+        results_solo[angle] = (np.abs(np.inner(s_solo,y_solo)))
+        results_two[angle] = (np.abs(np.inner(s_two,y_two)))
+        results_four[angle] = (np.abs(np.inner(s_four,y_four)))
+
+    plt.figure()
+    plt.plot(np.rad2deg(angles), 10*np.log10(results_solo/max(results_solo)), label = "solo")
+    plt.plot(np.rad2deg(angles), 10*np.log10(results_two/max(results_two)), label = "two")
+    plt.plot(np.rad2deg(angles), 10*np.log10(results_four/max(results_four)), label = "four")
     plt.legend()
+    plt.figure()
+    plt.imshow(np.angle(angle_show))
     plt.show()
 
 main_raw_steering_vectors()

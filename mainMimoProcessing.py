@@ -16,16 +16,16 @@ def generateSteeringVector(theta, phi, array, fc):
     OUTPUTS:
     s is a          n_elem * 1      vector of phase shifts, (a steering vector)
     """
+
     n_elem = np.shape(array)[0] #The number of rows in the array matrix
     c = 3e8
 
     #s is the steering vector
     #k is the [unit] look direction vector
-    s = np.zeros((n_elem,1),dtype=np.complex128)
+    s = np.zeros((n_elem,1), dtype=np.complex128)
     k = np.array([np.cos(theta)*np.cos(phi),np.sin(theta)*np.cos(phi),np.sin(phi)])
-
     for elem in range(n_elem):
-        s[elem] = np.exp(-2j*np.pi*(c/fc)*np.dot(array[elem,:],k))
+        s[elem] = np.exp(-2j*np.pi*np.dot((fc/c)*array[elem,:],k))
 
     return s
 
@@ -47,7 +47,6 @@ def generateMimoSteeringVector(theta, phi, array_tx, array_rx, fc):
     s_rx = generateSteeringVector(theta, phi, array_rx, fc)
     # Form the mimo steering vector. Convertion is s_tx kron s_rx
     s = np.kron(s_tx, s_rx).flatten()
-    s = np.conj(s)
 
     return s
 
