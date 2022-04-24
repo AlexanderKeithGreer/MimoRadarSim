@@ -6,6 +6,9 @@ import numpy.random as ra
 
 import signalLFM as lfm
 
+#Note that most of these functions have no theFunction_test function.
+#This is because they are tested by the simulation itself
+
 def generateSteeringVector(theta, phi, array, fc):
     """
     INPUTS:
@@ -31,7 +34,7 @@ def generateSteeringVector(theta, phi, array, fc):
 
 def generateMimoSteeringVector(theta, phi, array_tx, array_rx, fc):
     """
-    Assumes (mostly) co-located arrays
+    Assumes (mostly) co-located arrays. TX is the major dimension.
 
     INPUTS:
     theta is a      scalar          parameter to define azimuth
@@ -78,3 +81,85 @@ def extractPeakRangeDoppler(raw_waveforms, ref_waveforms, fs, f_max, r_max):
             y[rx + tx * n_rx] = rd_matrix.flatten()[peak]
 
     return y, peak
+
+def generateCovarianceIsotropic(array_tx, array_rx, fc):
+    """
+    Assumes (mostly co-located arrays). TX is the major dimension.
+    Isotropic noise model is based on Ch 2 of Brandstein's Microphone Array
+      Signal processing.
+
+    INPUTS:
+    array_tx is a   n_elem_tx x 3   matrix of tx antenna locations
+    array_rx is a   n_elem_rx x 3   matrix of rx antenna locations
+    fc is a         scalar          parameter for the carrier frequency
+
+    OUTPUTS:
+    R is a          (n_elem_tx*n_elem_rx)   matrix (covariance matrix)
+                    x (n_elem_tx*n_elem_rx)
+    """
+    n_tx = np.shape(array_tx)[0]
+    n_rx = np.shape(array_rx)[0]
+    n_elem = n_tx * n_rx         #number of virtual elements
+    c = 3e8
+
+    R_tx = np.zeros([n_tx, n_tx])
+    R_rx = np.zeros([n_rx, n_rx])
+    #This is a block matrix -- it can -probably- be kroned together
+    for N in range(n_tx):
+        for M in range(n_tx):
+            R_tx[M,N] = np.sinc(2*np.pi*np.dot((fc/c)*array_tx[M,:], array_tx[N,:]))
+    for N in range(n_rx):
+        for M in range(n_rx):
+            R_rx[M,N] = np.sinc(2*np.pi*np.dot((fc/c)*array_rx[M,:], array_rx[N,:]))
+    R = np.kron(R_tx, R_rx)
+    return R
+
+def generateSuperdirective(R, SNR, theta, phi, array_tx, array_rx, fc):
+    """
+    Assumes (mostly) co-located arrays. TX is the major dimension.
+    Solves the MVDR using isotropic
+
+    INPUTS:
+    array_tx is a   n_elem_tx x 3           matrix of tx antenna locations
+    array_rx is a   n_elem_rx x 3           matrix of rx antenna locations
+    R is a          (n_elem_tx*n_elem_rx)   matrix (covariance matrix)
+                    x (n_elem_tx*n_elem_rx)
+    fc is a         scalar                  carrier frequency
+    theta is a      scalar                  parameter to define azimuth
+    phi is a        scalar                  parameter to define altitude
+    SNR is a        scalar                  parameter used for robustness (dB)
+
+
+    OUTPUTS:
+    s is a          n_elem_tx * n_elem_rx   mimo steering vector
+    """
+    n_tx = len(array_tx)
+    n_rx = len(array_rx)
+    n_elem = len(array_tx) * len(array_rx)
+    a = generateMimoSteeringVector(theta, phi, array_tx, array_rx, fc)
+    R = generateCovarianceIsotropic(array_tx, array_rx, fc)
+    R += np.identity(n_elem) * (1/10**(SNR/10))
+    R_inv = la.inv(R)
+    Ra = np.matmul(R_inv, np.array([a]).T) #Not a Hermitian! Just need to covert to 2d
+    s = Ra/np.matmul(Ra.T.conj(), a)
+    s = s.flatten()
+    return s
+
+def generateSuperdirective_test():
+    """
+    Quickly check the geometry and coefficient values
+    """
+    theta = 35
+    phi = 0
+    fc = 2.4e9
+    wl = 3e8/fc
+    hl = wl/2 #Half wavelength. Short definition to minimise code line length
+    rx_five = np.array([[2*hl,0,0],[hl,0,0],[0,0,0],[-hl,0,0],[-2*hl,0,0]])
+    tx_two  = np.array([[2.5*hl,0,0],[-2.5*hl,0,0]])
+    tx_four = np.array([[5*hl,0,0],[2.5*hl,0,0],[-2.5*hl,0,0],[-5*hl,0,0]])
+    R_two   = generateCovarianceIsotropic(tx_two,  rx_five, fc)
+    s_two   = generateSuperdirective(R_two, tx_two,  rx_five, fc, theta, phi, 20)
+    R_four  = generateCovarianceIsotropic(tx_four, rx_five, fc)
+    s_four  = generateSuperdirective(R_two, tx_four, rx_five, fc, theta, phi, 20)
+    print(s_two)
+    print(s_four)
